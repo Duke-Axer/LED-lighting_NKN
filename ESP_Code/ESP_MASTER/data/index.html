@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Oświetlenie domu</title>
+    <style>
+        /* Dodatkowy styl dla wyglądu input[type=range] */
+        input[type=range] {
+            width: 100%;
+        }
+    </style>
+    <script>
+        // Zmienna do przechowywania poprzedniej wartości suwaka
+        var poprzedniaWartoscSuwaka = 0;
+
+        // Pobieranie aktualizacji wartości suwaka z serwera co 0.5 sekundy
+        setInterval(function() {
+            var xhr = new XMLHttpRequest();
+            xhr.onreadystatechange = function() {
+                if (xhr.readyState == 4 && xhr.status == 200) {
+                    var wartoscParametru = xhr.responseText;
+                    document.getElementById("wartosc-parametru").innerText = wartoscParametru;
+                    document.getElementById("parametr").value = wartoscParametru; // Ustawienie wartości suwaka
+                }
+            };
+            xhr.open("GET", "/pobierz-parametr", true);
+            xhr.send();
+        }, 500);
+
+        // Funkcja wysyłająca wartość suwaka do serwera po jego zmianie
+        function wyslijWartoscSuwaka() {
+            var aktualnaWartoscSuwaka = document.getElementById("parametr").value;
+            if (poprzedniaWartoscSuwaka !== aktualnaWartoscSuwaka) { // Sprawdzamy, czy wartość suwaka się zmieniła
+                var xhr = new XMLHttpRequest();
+                xhr.open("POST", "/ustaw-parametr", true);
+                xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
+                xhr.send("parametr=" + aktualnaWartoscSuwaka);
+                poprzedniaWartoscSuwaka = aktualnaWartoscSuwaka; // Aktualizujemy poprzednią wartość suwaka
+            }
+        }
+
+        // Funkcja aktualizująca wartość wyświetlaną na stronie
+        function aktualizujWartoscSuwaka() {
+            var parametrWartosc = document.getElementById("parametr").value;
+            document.getElementById("wartosc-parametru").innerText = parametrWartosc;
+            wyslijWartoscSuwaka(); // Wysyłamy wartość suwaka do serwera po jego zmianie
+        }
+    </script>
+</head>
+<body>
+    <h1>Natężenie oświetlenia</h1>
+    <form>
+        <label for="parametr">Oprawa nr.1:</label><br>
+        <!-- Używamy input[type=range] z zakresem od 0 do 100 -->
+        <input type="range" id="parametr" name="parametr" min="0" max="100" oninput="aktualizujWartoscSuwaka()">
+        <br>
+    </form>
+
+    <p>Oprawa: <span id="wartosc-parametru">{parametr}</span></p>
+</body>
+</html>
