@@ -1,60 +1,163 @@
 <!DOCTYPE html>
-<html>
+<html lang="pl-PL">
 <head>
-    <title>Oświetlenie domu</title>
-    <style>
-        /* Dodatkowy styl dla wyglądu input[type=range] */
-        input[type=range] {
-            width: 100%;
-        }
-    </style>
-    <script>
-        // Zmienna do przechowywania poprzedniej wartości suwaka
-        var poprzedniaWartoscSuwaka = 0;
-
-        // Pobieranie aktualizacji wartości suwaka z serwera co 0.5 sekundy
-        setInterval(function() {
-            var xhr = new XMLHttpRequest();
-            xhr.onreadystatechange = function() {
-                if (xhr.readyState == 4 && xhr.status == 200) {
-                    var wartoscParametru = xhr.responseText;
-                    document.getElementById("wartosc-parametru").innerText = wartoscParametru;
-                    document.getElementById("parametr").value = wartoscParametru; // Ustawienie wartości suwaka
-                }
-            };
-            xhr.open("GET", "/pobierz-parametr", true);
-            xhr.send();
-        }, 500);
-
-        // Funkcja wysyłająca wartość suwaka do serwera po jego zmianie
-        function wyslijWartoscSuwaka() {
-            var aktualnaWartoscSuwaka = document.getElementById("parametr").value;
-            if (poprzedniaWartoscSuwaka !== aktualnaWartoscSuwaka) { // Sprawdzamy, czy wartość suwaka się zmieniła
-                var xhr = new XMLHttpRequest();
-                xhr.open("POST", "/ustaw-parametr", true);
-                xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
-                xhr.send("parametr=" + aktualnaWartoscSuwaka);
-                poprzedniaWartoscSuwaka = aktualnaWartoscSuwaka; // Aktualizujemy poprzednią wartość suwaka
-            }
-        }
-
-        // Funkcja aktualizująca wartość wyświetlaną na stronie
-        function aktualizujWartoscSuwaka() {
-            var parametrWartosc = document.getElementById("parametr").value;
-            document.getElementById("wartosc-parametru").innerText = parametrWartosc;
-            wyslijWartoscSuwaka(); // Wysyłamy wartość suwaka do serwera po jego zmianie
-        }
-    </script>
+<title>Oświetlenie</title>
+	<style>
+	.cell {
+		border: 1px solid black;
+	}
+	</style>
+	<script>
+	var varOprawa1 = 0;
+	var varOprawa2 = 0;
+	var IP_STA = 0;
+	var IP_AP = 0;
+	var reset = 0;
+	
+	
+	function debounce(func, delay) { // wywołanie co delay ms (ostatnią wartość)
+		let timeout;
+		return function(...args) {
+			clearTimeout(timeout);
+			timeout = setTimeout(() => func.apply(this, args), delay);
+		};
+	}
+	
+	const debouncedSendMessage = debounce(sendMessage, 200);
+	function localSuwak(id) {
+		if (id == "suwak1") {
+			varOprawa1 = document.getElementById("suwak1").value;
+			document.getElementById("oprawa1").innerHTML = varOprawa1;
+		} else if (id == "suwak2") {
+			varOprawa2 = document.getElementById("suwak2").value;
+			document.getElementById("oprawa2").innerHTML = varOprawa2;
+		}
+		debouncedSendMessage();
+	}
+	
+	function actualSuwak(oprawa) {
+		if (oprawa == "oprawa1") {
+			document.getElementById("suwak1").value = varOprawa1;
+			document.getElementById("oprawa1").innerHTML = varOprawa1;
+		}
+		else if (oprawa == "oprawa2") {
+			document.getElementById("suwak2").value = varOprawa2;
+			document.getElementById("oprawa2").innerHTML = varOprawa2;
+		}
+	}
+	
+	<!-- function startSerwer(){ -->
+		<!-- var xhr = new XMLHttpRequest(); -->
+		<!-- xhr.onreadystatechange = function() { -->
+			<!-- if (xhr.readyState === 4 && xhr.status === 200) { -->
+				<!-- var startValue = JSON.parse(xhr.responseText); -->
+				<!-- varOprawa1 = startValue.varOprawa1; -->
+				<!-- varOprawa2 = startValue.varOprawa2; -->
+				<!-- IP_STA = startValue.IP_STA; -->
+				<!-- IP_AP = startValue.IP_AP; -->
+				
+				<!-- actualSuwak("oprawa1") -->
+				<!-- actualSuwak("oprawa2") -->
+				<!-- document.getElementById("IP_STA").innerHTML  = IP_STA; -->
+				<!-- document.getElementById("IP_AP").innerHTML  = IP_AP; -->
+			<!-- } -->
+		<!-- }; -->
+		<!-- xhr.open("GET", "/start-serwer", true); -->
+		<!-- xhr.send(); -->
+	<!-- } -->
+	
+	var socket;
+	function openWebSocket() {
+		socket = new WebSocket("ws://" + window.location.hostname + ":81/");
+		// Obsługa połączenia otwartego
+        socket.onopen = function(event) {
+			console.log("Połączono z serwerem WebSocket");
+		};
+		// Obsługa zamknięcia połączenia
+        socket.onclose = function(event) {
+			console.log("Połączenie WebSocket zamknięte");
+			setTimeout(openWebSocket, 2000);
+        };
+		// Obsługa błędów połączenia
+        socket.onerror = function(error) {
+			console.error("Błąd WebSocket: " + error);
+        };
+		// Obsługa odebranych wiadomości z serwera
+        socket.onmessage = debounce(function(event) {
+			var data = JSON.parse(event.data);
+			console.log("Odebrano wiadomość: " + event.data);
+			
+			varOprawa1 = data.varOprawa1;
+			varOprawa2 = data.varOprawa2;
+			actualSuwak("oprawa1")
+			actualSuwak("oprawa2")
+			if (data.IP_STA !== undefined) {
+				IP_STA = data.IP_STA;
+				IP_AP = data.IP_AP;
+				document.getElementById("IP_STA").innerHTML  = IP_STA;
+				document.getElementById("IP_AP").innerHTML  = IP_AP;
+			}
+			
+        }, 200);
+	}
+	// Funkcja do wysyłania wiadomości
+    function sendMessage() {
+		if (socket && socket.readyState === WebSocket.OPEN) {
+			var message = JSON.stringify({
+				varOprawa1: varOprawa1,
+				varOprawa2: varOprawa2
+			});
+			socket.send(message); // Wysyłamy wiadomość do serwera
+			console.log("Wysłano wiadomość: " + message);
+		} else {
+			console.log("WebSocket nie jest otwarty. Nie można wysłać wiadomości.");
+			}
+    }
+	function sendRestard(fixture) {
+		if (socket && socket.readyState === WebSocket.OPEN) {
+			if (fixture == 1) { reset = "varOprawa1" }
+			else if (fixture == 2) { reset = "varOprawa2" }
+			var message = JSON.stringify({
+				resetFixture: reset
+			});
+			socket.send(message); // Wysyłamy wiadomość do serwera
+			console.log("Wysłano wiadomość: " + message);
+		} else {
+			console.log("WebSocket nie jest otwarty. Nie można wysłać wiadomości.");
+			}
+    }
+	
+	
+	window.onbeforeunload = function() {
+		if (socket && socket.readyState === WebSocket.OPEN) {
+			socket.close();
+		}
+	};
+	window.onload = function() {
+		
+		openWebSocket();
+		//startSerwer();
+	};
+	</script>
 </head>
 <body>
-    <h1>Natężenie oświetlenia</h1>
-    <form>
-        <label for="parametr">Oprawa nr.1:</label><br>
-        <!-- Używamy input[type=range] z zakresem od 0 do 100 -->
-        <input type="range" id="parametr" name="parametr" min="0" max="100" oninput="aktualizujWartoscSuwaka()">
-        <br>
-    </form>
 
-    <p>Oprawa: <span id="wartosc-parametru">{parametr}</span></p>
+<h1>Oświetlenie</h1>
+<form class="cell">
+	<p>Oświetlenie 1</p>
+	<input type="range" id="suwak1" min="0" max="100" oninput=localSuwak("suwak1")>
+	<p>Oprawa 1: <span id="oprawa1"></span></p>
+	<button type="button" onclick="sendRestard(1)">zmień</button>
+</form>
+<form class="cell">
+	<p>Oświetlenie 2</p>
+	<input type="range" id="suwak2" min="0" max="100" oninput=localSuwak("suwak2")>
+	<p>Oprawa 2: <span id="oprawa2"></span></p>
+	<button type="button" onclick="sendRestard(2)">zmień</button>
+</form>
+<form>
+	<p>Adres IP nowej sieci: <span id="IP_STA"></span></p>
+	<p>Adres IP w głównej sieci: <span id="IP_AP"></span></p>
+</form>
 </body>
 </html>

@@ -1,0 +1,5 @@
+const char* main_ssid = "TP-LINK_Dom";         // Nazwa głównej sieci Wi-Fi
+const char* main_password = "Nekran924";       // Hasło do głównej sieci Wi-Fi
+
+const char* ap_ssid = "ESP_Master";           // Nazwa nowej sieci Wi-Fi
+const char* ap_password = "haslo";      // Hasło do nowej sieci Wi-Fi
